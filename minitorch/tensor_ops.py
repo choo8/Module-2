@@ -20,8 +20,7 @@ if TYPE_CHECKING:
 
 
 class MapProto(Protocol):
-    def __call__(self, x: Tensor, out: Optional[Tensor] = ..., /) -> Tensor:
-        ...
+    def __call__(self, x: Tensor, out: Optional[Tensor] = ..., /) -> Tensor: ...
 
 
 class TensorOps:
@@ -136,7 +135,7 @@ class SimpleOps(TensorOps):
 
     @staticmethod
     def zip(
-        fn: Callable[[float, float], float]
+        fn: Callable[[float, float], float],
     ) -> Callable[["Tensor", "Tensor"], "Tensor"]:
         """
         Higher-order tensor zip function ::
@@ -269,7 +268,23 @@ def tensor_map(fn: Callable[[float], float]) -> Any:
         in_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        size = operators.prod(out_shape)
+
+        for i in range(size):
+            out_idx = np.array(out_shape)
+            to_index(i, out_shape, out_idx)
+            out_pos = index_to_position(out_idx, out_strides)
+
+            if np.array_equal(out_shape, in_shape):
+                in_idx = np.array(in_shape)
+                to_index(i, in_shape, in_idx)
+                in_pos = index_to_position(in_idx, in_strides)
+            else:
+                in_idx = np.array(in_shape)
+                broadcast_index(out_idx, out_shape, in_shape, in_idx)
+                in_pos = index_to_position(in_idx, in_strides)
+
+            out[out_pos] = fn(in_storage[in_pos])
 
     return _map
 
@@ -319,7 +334,32 @@ def tensor_zip(fn: Callable[[float, float], float]) -> Any:
         b_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        size = operators.prod(out_shape)
+        for i in range(size):
+            out_idx = np.array(out_shape)
+            to_index(i, out_shape, out_idx)
+            out_pos = index_to_position(out_idx, out_strides)
+
+            if np.array_equal(out_shape, a_shape) and np.array_equal(
+                out_shape, b_shape
+            ):
+                a_idx = np.array(a_shape)
+                to_index(i, a_shape, a_idx)
+                a_pos = index_to_position(a_idx, a_strides)
+
+                b_idx = np.array(b_shape)
+                to_index(i, b_shape, b_idx)
+                b_pos = index_to_position(b_idx, b_strides)
+            else:
+                a_idx = np.array(a_shape)
+                broadcast_index(out_idx, out_shape, a_shape, a_idx)
+                a_pos = index_to_position(a_idx, a_strides)
+
+                b_idx = np.array(b_shape)
+                broadcast_index(out_idx, out_shape, b_shape, b_idx)
+                b_pos = index_to_position(b_idx, b_strides)
+
+            out[out_pos] = fn(a_storage[a_pos], b_storage[b_pos])
 
     return _zip
 
@@ -355,7 +395,21 @@ def tensor_reduce(fn: Callable[[float, float], float]) -> Any:
         reduce_dim: int,
     ) -> None:
         # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        size = operators.prod(out_shape)
+
+        for i in range(size):
+            out_idx = np.array(out_shape)
+            to_index(i, out_shape, out_idx)
+            out_pos = index_to_position(out_idx, out_strides)
+
+            xs = []
+            for j in range(a_shape[reduce_dim]):
+                a_idx = np.array(out_idx)
+                a_idx[reduce_dim] = j
+                a_pos = index_to_position(a_idx, a_strides)
+                xs.append(a_storage[a_pos])
+
+            out[out_pos] = operators.reduce(fn, xs)
 
     return _reduce
 
